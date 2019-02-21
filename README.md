@@ -19,7 +19,9 @@ In each mode (except Biome), the probe will give you information about the range
 
 ## What Are These Settings?
 
-When you point somewhere, the probe remembers some properties of the cell you're pointing at. The "Match" settings restrict the probe to cells matching the properties of the first cell. So in Mass mode, with "Match Element" checked, if you point at Oxygen, the probe will only add other Oxygen cells to the probed area. If checked:
+When you point somewhere, the probe remembers some properties of the cell you're pointing at. The "Match" settings restrict the probe to cells matching the properties of the first cell. So in Mass mode, with "Match Element" checked, if you point at Oxygen, the probe will only add other Oxygen cells to the probed area.
+
+If checked:
 
  - Match Element - The probe only includes cells with the same element/germ type as the first cell.
  - Match Phase - The probe only includes cells with the same phase (gas, liquid, solid) as the first cell.
@@ -33,3 +35,5 @@ The Range simply controls how far the probe is allowed to reach. The color palet
 
  - Why is the UI bad?
    - Because the UI in Oxygen Not Included is built out of prefabs in the Unity Editor. I don't have access to the Editor for the game, or most of the prefabs, so building a proper looking UI is hard. I would have to steal prefabs from other parts of the UI and then put everything together with code. Instead, I used Unity's IMGUI to just get it working.
+ - What does NEGLIGIBLE RANGE mean?
+   - There is a very small range of density/temperature over the area you're probing, so the probe won't show the greatest/least or hottest/coldest colors in the area.
