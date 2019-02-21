@@ -38,4 +38,4 @@ The Range simply controls how far the probe is allowed to reach. The color palet
  - What does NEGLIGIBLE RANGE mean?
    - There is a very small range of density/temperature over the area you're probing, so the probe won't show the greatest/least or hottest/coldest colors in the area.
  - The probe area doesn't show density shading, or it all shows as hot/cold.
-   - There may be a very dense/light or hot/cold cell in the area you're probing. The density/temperature shading has to cover the whole range, so an extreme value can make the shading very flat. Look at the minimum/maximum of the probe area, then try adjusting the probe settings or try probing a smaller area. 
+   - There may be a very dense/light or hot/cold cell in the area you're probing. The density/temperature shading has to cover the whole range, so an extreme value can make the shading very flat. Look at the minimum/maximum of the probe area, then try adjusting the probe settings or try probing a smaller area. In particular, gases can be tricky, because even if your whole base averages 1800 g, there might be a few tiles with only a few hundred grams.
