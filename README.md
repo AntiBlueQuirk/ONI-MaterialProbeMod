@@ -37,3 +37,5 @@ The Range simply controls how far the probe is allowed to reach. The color palet
    - Because the UI in Oxygen Not Included is built out of prefabs in the Unity Editor. I don't have access to the Editor for the game, or most of the prefabs, so building a proper looking UI is hard. I would have to steal prefabs from other parts of the UI and then put everything together with code. Instead, I used Unity's IMGUI to just get it working.
  - What does NEGLIGIBLE RANGE mean?
    - There is a very small range of density/temperature over the area you're probing, so the probe won't show the greatest/least or hottest/coldest colors in the area.
+ - The probe area doesn't show density shading, or it all shows as hot/cold.
+   - There may be a very dense/light or hot/cold cell in the area you're probing. The density/temperature shading has to cover the whole range, so an extreme value can make the shading very flat. Look at the minimum/maximum of the probe area, then try adjusting the probe settings or try probing a smaller area. 
