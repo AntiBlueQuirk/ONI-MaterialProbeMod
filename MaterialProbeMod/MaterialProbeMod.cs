@@ -999,6 +999,7 @@ namespace MaterialProbeMod
         {
             //Ugh, creating prefabs in code is *awful*.
             //Especially because I can't find any UI prefabs in the game. Or, at least, not the ones I need.
+            //Anyway, we turn this GameObject into a simple UI here. It's just an empty box, but we can insert it into the UI tree for OnGUI to use.
             GameObject root = new GameObject("MaterialProbeDiagram");
             root.AddComponent<CanvasRenderer>();
             var root_layout = root.AddComponent<LayoutElement>();
@@ -1011,28 +1012,23 @@ namespace MaterialProbeMod
             var bg_image = bg.AddComponent<Image>(); //just attaches a white background for now
             bg_image.color = new Color32(215, 215, 215, 0);
             bg.AddComponent<HorizontalLayoutGroup>();
+
+            //Add this component so OnGUI works. The background is now our "anchor box".
             bg.AddComponent<MaterialProbeDiagram>();
 
             bg.transform.SetParent(root.transform);
-            //
-            //GameObject contents = new GameObject("Contents");
-            //    contents.AddComponent<CanvasRenderer>();
-            //    contents.AddComponent<VerticalLayoutGroup>();
-            //    contents.transform.SetParent(bg.transform);
-            //
-            //GameObject cb_1 = Util.KInstantiateUI(Assets.UIPrefabs.TableScreenWidgets.Checkbox, contents, true);
-            //    cb_1.transform.SetParent(contents.transform);
-            //
-            //var root_probe = root.AddComponent<MaterialProbeDiagram>();
 
             return root;
         }
         private static GameObject Prefab_;
+
+        //to be used with Util.KInstantiateUI
         public static GameObject Prefab { get {
                 if (Prefab_ == null) Prefab_ = CreateMaterialProbeDiagram();
                 return Prefab_;
             } }
         
+        //Gets the screen position of a RectTransform. UI objects are located in Canvas space, but OnGUI (IMGUI) uses screen space.
         public static Rect RectTransformToScreenSpace(RectTransform rxf, Canvas canvas)
         {
             var crxf = (RectTransform)canvas.transform;
@@ -1052,12 +1048,16 @@ namespace MaterialProbeMod
         //}
 
         string typedRange = null;
+        //Called automatically by Unity to draw an IMGUI.
         public void OnGUI()
         {
+            //All parts of ONI's UI should have a Canvas as an ancestor.
             var canvas = GetComponentInParent<Canvas>();
+            //Try to suppress drawing while the "anchor box" is not visible. Doesn't always seem to work.
             if (isActiveAndEnabled && gameObject.activeInHierarchy && canvas != null)
             {
                 var rt = (RectTransform)this.transform;
+                //the area of the anchor box is the area we want to draw IMGUI in.
                 Rect area = RectTransformToScreenSpace(rt, canvas);
                 //Debug.Log("GUI Size:" + ONIJSONContractResolver.Serialize(canvas.rectTransform().rect.size));
                 //Debug.Log("GUI Area:" + ONIJSONContractResolver.Serialize(area));
@@ -1105,6 +1105,7 @@ namespace MaterialProbeMod
         }
     }
 
+    //This patch is called when the OverlayLegend is spawned. This is where we insert our overlay button.
     [HarmonyPatch(typeof(OverlayLegend), "OnSpawn")]
     public static class OverlayLegend_OnSpawn_Patch
     {
@@ -1142,14 +1143,14 @@ namespace MaterialProbeMod
                 }
             ) { Target = labelStealer0Target },
         };
-        #endregion
-
+        
         public static IEnumerable<CodeInstruction> Transpiler(MethodBase original, IEnumerable<CodeInstruction> instr)
         {
             return QuickPatcher.ApplyPatches(original, instr, patchers);
         }
+        #endregion
 
-        //We do this after OverlayLegend's localization pass, since it won't recognize our strings.
+        //Called after OnSpawn's localization pass, since it won't recognize our strings.
         public static void Hook_OnSpawn_PostInfoListLocalize(OverlayLegend legend, List<OverlayLegend.OverlayInfo> ___overlayInfoList)
         {
             //info is a struct, there is no real initialization.
@@ -1163,6 +1164,7 @@ namespace MaterialProbeMod
             ___overlayInfoList.Add(info);
         }
 
+        //I do some object dumping here for debugging, but otherwise this method isn't important.
         public static void Postfix(OverlayLegend __instance, List<OverlayLegend.OverlayInfo> ___overlayInfoList)
         {
             //List<string> derp = new List<string>();
@@ -1217,12 +1219,16 @@ namespace MaterialProbeMod
     }
 
 
+    //This patch is called to set the legend for an overlay. The legend is the series of colored boxes that
+    //each legend uses as a "color key". For instance, on the oxygen overlay, there are keys for "Very Breathable",
+    //and "Unbreathable"
     [HarmonyPatch(typeof(OverlayLegend), "SetLegend", new Type[] { typeof(OverlayLegend.OverlayInfo) })]
     public static class OverlayLegend_SetLegend_Patch
     {
         private static FieldInfo OverlayLegend_activeUnitsParent_Field = AccessTools.Field(typeof(OverlayLegend), "activeUnitsParent");
         private static FieldInfo OverlayLegend_activeUnitObjs_Field = AccessTools.Field(typeof(OverlayLegend), "activeUnitObjs");
 
+        //Sets up the GameObject received from OverlayLegend.GetFreeUnitObject(), and fetches out some of its components.
         public static GameObject UnitInit(GameObject unitObj, out LocText text, out Image icon, out ToolTip tooltip)
         {
             var activeUnitsParent = (GameObject)OverlayLegend_activeUnitsParent_Field.GetValue(OverlayLegend.Instance);
@@ -1243,6 +1249,7 @@ namespace MaterialProbeMod
             unitObj.transform.SetParent(activeUnitsParent.transform);
             return unitObj;
         }
+        //Fetches some components out of a GameObject received from OverlayLegend.activeUnitObjs.
         public static GameObject UnitFetch(GameObject unitObj, out LocText text, out Image icon, out ToolTip tooltip)
         {
             text = unitObj.GetComponentInChildren<LocText>();
@@ -1255,6 +1262,7 @@ namespace MaterialProbeMod
         {
             return new Color(color.r * color.a, color.g * color.a, color.b * color.a, 1.0f);
         }
+        //Sets up our legend when it's first needed, i.e., initializes the legend.
         public static void DoLegendUpdate(OverlayLegend legend)
         {
             //Assuming ClearLegend has been called. Also assuming we're in the right mode
@@ -1265,6 +1273,7 @@ namespace MaterialProbeMod
             unitObj = UnitInit(legend.GetFreeUnitObject(), out text, out icon, out tooltip);
             QuickUpdate(legend);
         }
+        //Updates our legend *after* it has been initialized. You can call this as much as you want.
         public static void QuickUpdate(OverlayLegend legend = null)
         {
             if (legend == null) legend = OverlayLegend.Instance;
@@ -1337,6 +1346,7 @@ namespace MaterialProbeMod
             }
         }
 
+        //Called after OverlayLegend.SetLegend()
         public static void Postfix(OverlayLegend __instance, List<GameObject> ___activeDiagrams, GameObject ___diagramsParent, OverlayLegend.OverlayInfo overlayInfo)
         {
             if (overlayInfo != null && overlayInfo.mode == MaterialProbeMode.ID)
@@ -1356,6 +1366,7 @@ namespace MaterialProbeMod
     [HarmonyPatch(typeof(StatusItem), "GetStatusItemOverlayBySimViewMode")]
     public static class StatusItem_GetStatusItemOverlayBySimViewMode_Patch
     {
+        //Called before StatusItem.GetStatusItemOverlayBySimViewMode()
         public static bool Prefix(HashedString mode, ref StatusItem.StatusItemOverlays __result)
         {
             if (mode == MaterialProbeMode.ID)
@@ -1389,6 +1400,7 @@ namespace MaterialProbeMod
     //    }
     //}
 
+    //This patch lets us determine what Selectables (buildings, creatures, etc.) should be selectable in our overlay.
     [HarmonyPatch(typeof(SelectToolHoverTextCard), "ShouldShowSelectableInCurrentOverlay", new Type[] { typeof(KSelectable) })]
     public static class SelectToolHoverTextCard_UShouldShowSelectableInCurrentOverlay_Patch
     {
@@ -1404,12 +1416,15 @@ namespace MaterialProbeMod
     }
 
     
+    //This is a big complicated patch, since it targets a big function. UpdateHoverElements is responsible for creating
+    //the list of tooltips when you hover over a cell or object.
+    //
     //This is a *difficult* patch. We can't prefix or postfix, so our only choice is transpile. To keep things as simple
     //as possible, we're going to simply inject calls to our functions at appropriate places.
     [HarmonyPatch(typeof(SelectToolHoverTextCard), "UpdateHoverElements", new Type[] { typeof(List<KSelectable>) })]
     public static class SelectToolHoverTextCard_UpdateHoverElements_Patch
     {
-        #region Patches for Cosmic/Expressive Upgrade
+        #region Patches for QoL2 Upgrade
         static CodeInstruction labelStealer0Target = new CodeInstruction(OpCodes.Ldarg_0);
         static CodeInstruction labelStealer1Target = new CodeInstruction(OpCodes.Ldarg_0);
         static QuickPatcher.LocalReference local_mode          = new QuickPatcher.LocalReference(typeof(HashedString) , 5);
@@ -1510,7 +1525,6 @@ namespace MaterialProbeMod
                 }
             ) { Target = labelStealer1Target },
         };
-        #endregion
 
         public static IEnumerable<CodeInstruction> Transpiler(MethodBase original, IEnumerable<CodeInstruction> instr)
         {
@@ -1518,8 +1532,8 @@ namespace MaterialProbeMod
             
             return QuickPatcher.ApplyPatches(original, instr, patchers);
         }
+        #endregion
 
-        
         //Called before any other tooltip cards are generated. This is called outside of a BeginShadowBar block,
         //so you can create any number of such cards you would like.
         public static void Hook_UpdateHoverElements_First(SelectToolHoverTextCard card, HoverTextDrawer drawer, List<KSelectable> hoveredSelectables, HashedString mode, int cell, ref bool showElement)
@@ -1748,7 +1762,9 @@ namespace MaterialProbeMod
     }
 
 
-    //This is what actually does the coloring.
+    //This patch sets up the coloring delegate for our overlay. This is what actually colors tiles on the map when our overlay is active.
+    //Despite the name, this is how the game does all the overlay coloring. There is also a way to change the texture and filtering of
+    //the overlay (why oxygen and germs overlays look different), but the default is fine for this.
     [HarmonyPatch(typeof(SimDebugView), MethodType.Constructor, new Type[] { })]
     public static class SimDebugView_Ctor_Patch
     {
@@ -1767,6 +1783,8 @@ namespace MaterialProbeMod
         public static float high_alpha = 1.0f;
         public static Color space_color = new Color(1, 0.5f, 0.5f, 0.5f);
 
+        //All we need to do is add a delegate to SimDebugView.getColorFuncs. It takes care of the rest.
+        //If we wanted to change the filtering or texture, we would add a Action<SimDebugView, Texture> to dataUpdateFuncs.
         public static void Postfix(Dictionary<HashedString, Func<SimDebugView, int, Color>> ___getColourFuncs)
         {
             ___getColourFuncs.Add(MaterialProbeMode.ID, MaterialProbeGetColor);
@@ -1878,6 +1896,7 @@ namespace MaterialProbeMod
     
 }
 
+//Theoretically, we may be able to hook into the game's localization system, which would allow our strings to be localized.
 namespace STRINGS
 {
     public class MATERIAL_PROBE
