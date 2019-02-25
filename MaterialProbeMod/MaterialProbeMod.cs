@@ -1069,37 +1069,44 @@ namespace MaterialProbeMod
                 GUILayout.BeginArea(area);
 
                 GUI.enabled = MaterialProber.mode != OverlayMode.BIOME;
-                MaterialProber.matchElement     = GUILayout.Toggle(MaterialProber.matchElement    , "Match Element");
-                MaterialProber.matchPhase       = GUILayout.Toggle(MaterialProber.matchPhase      , "Match Phase");
-                MaterialProber.matchConstructed = GUILayout.Toggle(MaterialProber.matchConstructed, "Match Constructed");
-                MaterialProber.matchBiome       = GUILayout.Toggle(MaterialProber.matchBiome      , "Match Biome");
+                MaterialProber.matchElement     = GUILayout.Toggle(MaterialProber.matchElement    , STRINGS.MATERIAL_PROBE.MATCH_ELEMENT);
+                MaterialProber.matchPhase       = GUILayout.Toggle(MaterialProber.matchPhase      , STRINGS.MATERIAL_PROBE.MATCH_PHASE);
+                MaterialProber.matchConstructed = GUILayout.Toggle(MaterialProber.matchConstructed, STRINGS.MATERIAL_PROBE.MATCH_CONSTRUCTED);
+                MaterialProber.matchBiome       = GUILayout.Toggle(MaterialProber.matchBiome      , STRINGS.MATERIAL_PROBE.MATCH_BIOME);
                 GUI.enabled = MaterialProber.mode != OverlayMode.BIOME && MaterialProber.mode != OverlayMode.GERMS;
-                MaterialProber.ignoreUnusual    = GUILayout.Toggle(MaterialProber.ignoreUnusual   , "Ignore Abysallite/Neutronium");
+                MaterialProber.ignoreUnusual    = GUILayout.Toggle(MaterialProber.ignoreUnusual   , STRINGS.MATERIAL_PROBE.IGNORE_UNUSUAL);
 
                 GUI.enabled = true;
                 GUILayout.BeginHorizontal();
-                    GUILayout.Label("Range: ", GUILayout.ExpandWidth(false));
+                    GUILayout.Label(STRINGS.MATERIAL_PROBE.RANGE_FIELD, GUILayout.ExpandWidth(false));
+
+
+                    GUI.SetNextControlName("RangeTextField");
                     typedRange = GUILayout.TextField(typedRange != null ? typedRange : MaterialProber.range.ToString(), GUILayout.ExpandWidth(false), GUILayout.MinWidth(40));
                     try {
                         MaterialProber.range = int.Parse(typedRange);
                         typedRange = null;
                     } catch (FormatException) { }
+                    if (GUI.GetNameOfFocusedControl() != "RangeTextField")
+                        typedRange = null;
+                    
                     if (MaterialProber.range < 1) MaterialProber.range = 1;
+
                     MaterialProber.range = (int) GUILayout.HorizontalSlider(MaterialProber.range, 1, 100, GUILayout.ExpandWidth(true));
                     if (MaterialProber.range < 1) MaterialProber.range = 1;
                 GUILayout.EndHorizontal();
 
-                if (GUILayout.Button("Color Palette: " + PatchCommon.colorPaletteNames[PatchCommon.colorPalette]))
+                if (GUILayout.Button(STRINGS.MATERIAL_PROBE.COLOR_PALETTE + PatchCommon.colorPaletteNames[PatchCommon.colorPalette]))
                 {
                     PatchCommon.colorPalette = (PatchCommon.colorPalette + 1) % PatchCommon.colorPaletteNames.Length;
                 }
-                GUILayout.BeginVertical();
-                    GUILayout.Label("Mode");
-                    if (GUILayout.Toggle(MaterialProber.mode == OverlayMode.MASS       , "Mass"       , GUI.skin.button)) MaterialProber.mode = OverlayMode.MASS       ;
-                    if (GUILayout.Toggle(MaterialProber.mode == OverlayMode.TEMPERATURE, "Temperature", GUI.skin.button)) MaterialProber.mode = OverlayMode.TEMPERATURE;
-                    if (GUILayout.Toggle(MaterialProber.mode == OverlayMode.GERMS      , "Germs"      , GUI.skin.button)) MaterialProber.mode = OverlayMode.GERMS      ;
-                    if (GUILayout.Toggle(MaterialProber.mode == OverlayMode.BIOME      , "Biome"      , GUI.skin.button)) MaterialProber.mode = OverlayMode.BIOME      ;
-                GUILayout.EndVertical();
+                GUILayout.BeginHorizontal();
+                    GUILayout.Label(STRINGS.MATERIAL_PROBE.MODE_LABEL, GUILayout.ExpandWidth(false));
+                    if (GUILayout.Toggle(MaterialProber.mode == OverlayMode.MASS       , STRINGS.MATERIAL_PROBE.MODE_MASS , GUI.skin.button)) MaterialProber.mode = OverlayMode.MASS       ;
+                    if (GUILayout.Toggle(MaterialProber.mode == OverlayMode.TEMPERATURE, STRINGS.MATERIAL_PROBE.MODE_TEMP , GUI.skin.button)) MaterialProber.mode = OverlayMode.TEMPERATURE;
+                    if (GUILayout.Toggle(MaterialProber.mode == OverlayMode.GERMS      , STRINGS.MATERIAL_PROBE.MODE_GERMS, GUI.skin.button)) MaterialProber.mode = OverlayMode.GERMS      ;
+                    if (GUILayout.Toggle(MaterialProber.mode == OverlayMode.BIOME      , STRINGS.MATERIAL_PROBE.MODE_BIOME, GUI.skin.button)) MaterialProber.mode = OverlayMode.BIOME      ;
+                GUILayout.EndHorizontal();
 
 
                 GUILayout.EndArea();
@@ -1570,10 +1577,10 @@ namespace MaterialProbeMod
                         {
                             Klei.AI.Disease disease = Db.Get().Diseases[(byte)MaterialProber.touchedDisease];
 
-                            drawer.DrawText(MaterialProber.massByElement.Count>1 ? "<MULTIPLE TYPES>" : disease.Name.ToUpper(), card.Styles_Title.Standard);
+                            drawer.DrawText(MaterialProber.massByElement.Count>1 ? STRINGS.MATERIAL_PROBE.MULTIPLE_TYPES.text : disease.Name.ToUpper(), card.Styles_Title.Standard);
 
                             drawer.NewLine(lineHeight); drawer.DrawIcon(iconDash, 18);
-                            drawer.DrawText("Cells: " + MaterialProber.cellCount, card.Styles_Values.Property.Standard);
+                            drawer.DrawText(string.Format(STRINGS.MATERIAL_PROBE.CELL_COUNT, MaterialProber.cellCount), card.Styles_Values.Property.Standard);
                                 
                             drawer.NewLine(lineHeight); drawer.DrawIcon(iconDash, 18);
                             drawer.DrawText(string.Format(STRINGS.MATERIAL_PROBE.STAT_TOTAL, GameUtil.GetFormattedDiseaseAmount((int)MaterialProber.totalMass)),
@@ -1608,7 +1615,7 @@ namespace MaterialProbeMod
                         }
                         else if (MaterialProber.mode == OverlayMode.MASS)
                         {
-                            drawer.DrawText(MaterialProber.massByElement.Count > 1 ? "<MULTIPLE ELEMENTS>" : MaterialProber.touchedElement.nameUpperCase, card.Styles_Title.Standard);
+                            drawer.DrawText(MaterialProber.massByElement.Count > 1 ? STRINGS.MATERIAL_PROBE.MULTIPLE_ELEMENTS.text : MaterialProber.touchedElement.nameUpperCase, card.Styles_Title.Standard);
 
                             drawer.NewLine(lineHeight); drawer.DrawIcon(iconDash, 18);
                             drawer.DrawText("Cells: " + MaterialProber.cellCount, card.Styles_Values.Property.Standard);
@@ -1686,7 +1693,7 @@ namespace MaterialProbeMod
                         }
                         else if (MaterialProber.mode == OverlayMode.TEMPERATURE)
                         {
-                            drawer.DrawText(MaterialProber.massByElement.Count > 1 ? "<MULTIPLE>" : MaterialProber.touchedElement.nameUpperCase, card.Styles_Title.Standard);
+                            drawer.DrawText(MaterialProber.massByElement.Count > 1 ? STRINGS.MATERIAL_PROBE.MULTIPLE_ELEMENTS.text : MaterialProber.touchedElement.nameUpperCase, card.Styles_Title.Standard);
 
                             drawer.NewLine(lineHeight); drawer.DrawIcon(iconDash, 18);
                             drawer.DrawText("Cells: " + MaterialProber.cellCount, card.Styles_Values.Property.Standard);
@@ -1717,7 +1724,7 @@ namespace MaterialProbeMod
                         if (MaterialProber.negligbleRange)
                         {
                             drawer.NewLine(lineHeight); drawer.DrawIcon(iconDash, 18);
-                            drawer.DrawText("NEGLIGIBLE RANGE",
+                            drawer.DrawText(STRINGS.MATERIAL_PROBE.NEGLIGIBLE_RANGE,
                                 card.Styles_Values.Property.Standard);
                         }
 
@@ -1904,7 +1911,19 @@ namespace STRINGS
     public class MATERIAL_PROBE
     {
         public static LocString BUTTON = "Material Probe";
-        public static LocString OVERLAYSTRING = "Probes information for large areas";
+        public static LocString OVERLAYSTRING = "Analyzes information for large areas";
+        public static LocString MATCH_ELEMENT     = "Match Element";
+        public static LocString MATCH_PHASE       = "Match Phase";
+        public static LocString MATCH_CONSTRUCTED = "Match Constructed";
+        public static LocString MATCH_BIOME       = "Match Biome";
+        public static LocString IGNORE_UNUSUAL    = "Ignore Abysallite/Neutronium";
+        public static LocString COLOR_PALETTE     = "Color Palette: ";
+        public static LocString MODE_LABEL        = "Mode: ";
+        public static LocString MODE_MASS         = "Mass";
+        public static LocString MODE_TEMP         = "Temp.";
+        public static LocString MODE_GERMS        = "Germs";
+        public static LocString MODE_BIOME        = "Biome";
+        public static LocString CELL_COUNT  = "Cells: {0}";
         public static LocString STAT_HERE  = "Here: {0}";
         public static LocString STAT_AVG   = "Avg.: {0}";
         public static LocString STAT_RANGE = "Range: {0} - {1}";
@@ -1913,6 +1932,9 @@ namespace STRINGS
         public static LocString STAT_HARV = "Harvestable: {0}";
         public static LocString STAT_MOLAR = "Molar Mass Here: {0}";
         public static LocString STAT_THERM = "Thermal Energy: {0}";
+        public static LocString MULTIPLE_TYPES = "<MULTIPLE TYPES>";
+        public static LocString MULTIPLE_ELEMENTS = "<MULTIPLE ELEMENTS>";
+        public static LocString NEGLIGIBLE_RANGE = "NEGLIGIBLE RANGE";
 
         public class MOLE
         {
