@@ -94,11 +94,11 @@ namespace MaterialProbeMod
         public static string[] colorPaletteNames =
         {
             "Default",
+            "Flat",
             "Substance",
             "UI",
             "Conduit",
-            "Hash",
-            "Flat"
+            "Hash"
         };
         public static Dictionary<SimHashes, Color> colorOverride = new Dictionary<SimHashes, Color>();
 
@@ -186,15 +186,15 @@ namespace MaterialProbeMod
                             color = e.substance.uiColour;
                         }
                     } break;
-                case 1: color = e.substance.colour; break;
-                case 2: color = e.substance.uiColour; break;
-                case 3: color = e.substance.conduitColour; break;
-                case 4:
+                case 1: color = Color.white; break;
+                case 2: color = e.substance.colour; break;
+                case 3: color = e.substance.uiColour; break;
+                case 4: color = e.substance.conduitColour; break;
+                case 5:
                     {
                         int hash = Hash.SDBMLower(e.name);
                         color = new Color32((byte)(hash & 0xFF), (byte)((hash >> 8) & 0xFF), (byte)((hash >> 16) & 0xFF), 0xFF);
                     } break;
-                case 5: color = Color.white; break;
             }
 
             //if (mod_MaterialColor_SimHashesExtension != null)
@@ -1092,6 +1092,7 @@ namespace MaterialProbeMod
                 //Debug.Log("GUI Area:" + ONIJSONContractResolver.Serialize(area));
                 //area.y += area.height;
 
+                bool shiftHeld = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
                 GUI.enabled = true;
                 GUILayout.BeginArea(area);
 
@@ -1119,21 +1120,24 @@ namespace MaterialProbeMod
                     
                     const float adjustWidth = 16;
                     if (GUILayout.Button("-", GUILayout.Width(adjustWidth)))
-                        MaterialProber.range = MaterialProber.range - (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift) ? 5 : 1);
+                        MaterialProber.range = MaterialProber.range - (shiftHeld ? 5 : 1);
                     
                     if (MaterialProber.range < 1) MaterialProber.range = 1;
 
                     MaterialProber.range = (int) GUILayout.HorizontalSlider(MaterialProber.range, 1, 100, GUILayout.ExpandWidth(true));
 
                     if (GUILayout.Button("+", GUILayout.Width(adjustWidth)))
-                        MaterialProber.range = MaterialProber.range + (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift) ? 5 : 1);
+                        MaterialProber.range = MaterialProber.range + (shiftHeld ? 5 : 1);
 
                     if (MaterialProber.range < 1) MaterialProber.range = 1;
                 GUILayout.EndHorizontal();
 
                 if (GUILayout.Button(STRINGS.MATERIAL_PROBE.COLOR_PALETTE + PatchCommon.colorPaletteNames[PatchCommon.colorPalette]))
                 {
-                    PatchCommon.colorPalette = (PatchCommon.colorPalette + 1) % PatchCommon.colorPaletteNames.Length;
+                    if (shiftHeld)
+                        PatchCommon.colorPalette = (PatchCommon.colorPalette + 1) % PatchCommon.colorPaletteNames.Length;
+                    else
+                        PatchCommon.colorPalette = (PatchCommon.colorPalette + 1) % 2;
                 }
                 if (GUILayout.Button(STRINGS.MATERIAL_PROBE.RANGEMODE_LABEL + MaterialProber.RangeModeName))
                 {
@@ -1662,12 +1666,12 @@ namespace MaterialProbeMod
                             drawer.DrawText(string.Format(STRINGS.MATERIAL_PROBE.STAT_MINMAX, GameUtil.GetFormattedDiseaseAmount((int)MaterialProber.true_min), GameUtil.GetFormattedDiseaseAmount((int)MaterialProber.true_max)),
                                 card.Styles_Values.Property.Standard);
                             
-                            if (MaterialProber.rangeMode != 0)
-                            {
-                                drawer.NewLine(lineHeight); drawer.DrawIcon(iconDash, 18);
-                                drawer.DrawText(string.Format(STRINGS.MATERIAL_PROBE.STAT_RANGE, GameUtil.GetFormattedDiseaseAmount((int)MaterialProber.Min), GameUtil.GetFormattedDiseaseAmount((int)MaterialProber.Max)),
-                                    card.Styles_Values.Property.Standard);
-                            }
+                            //if (MaterialProber.rangeMode != 0)
+                            //{
+                            //    drawer.NewLine(lineHeight); drawer.DrawIcon(iconDash, 18);
+                            //    drawer.DrawText(string.Format(STRINGS.MATERIAL_PROBE.STAT_RANGE, GameUtil.GetFormattedDiseaseAmount((int)MaterialProber.Min), GameUtil.GetFormattedDiseaseAmount((int)MaterialProber.Max)),
+                            //        card.Styles_Values.Property.Standard);
+                            //}
                         }
                         else if (MaterialProber.mode == OverlayMode.MASS)
                         {
@@ -1691,12 +1695,12 @@ namespace MaterialProbeMod
                                 drawer.DrawText(string.Format(STRINGS.MATERIAL_PROBE.STAT_MINMAX, PatchCommon.FormatMass(MaterialProber.true_min), PatchCommon.FormatMass(MaterialProber.true_max)),
                                     card.Styles_Values.Property.Standard);
                                 
-                                if (MaterialProber.rangeMode != 0)
-                                {
-                                    drawer.NewLine(lineHeight); drawer.DrawIcon(iconDash, 18);
-                                    drawer.DrawText(string.Format(STRINGS.MATERIAL_PROBE.STAT_RANGE, PatchCommon.FormatMass(MaterialProber.Min), PatchCommon.FormatMass(MaterialProber.Max)),
-                                        card.Styles_Values.Property.Standard);
-                                }
+                                //if (MaterialProber.rangeMode != 0)
+                                //{
+                                //    drawer.NewLine(lineHeight); drawer.DrawIcon(iconDash, 18);
+                                //    drawer.DrawText(string.Format(STRINGS.MATERIAL_PROBE.STAT_RANGE, PatchCommon.FormatMass(MaterialProber.Min), PatchCommon.FormatMass(MaterialProber.Max)),
+                                //        card.Styles_Values.Property.Standard);
+                                //}
 
                                 if (MaterialProber.touchedElement.IsSolid)
                                 {
@@ -1776,12 +1780,12 @@ namespace MaterialProbeMod
                                 drawer.DrawText(string.Format(STRINGS.MATERIAL_PROBE.STAT_MINMAX, PatchCommon.FormatTemp(MaterialProber.true_min), PatchCommon.FormatTemp(MaterialProber.true_max)),
                                     card.Styles_Values.Property.Standard);
                                 
-                                if (MaterialProber.rangeMode != 0)
-                                {
-                                    drawer.NewLine(lineHeight); drawer.DrawIcon(iconDash, 18);
-                                    drawer.DrawText(string.Format(STRINGS.MATERIAL_PROBE.STAT_RANGE, PatchCommon.FormatTemp(MaterialProber.Min), PatchCommon.FormatTemp(MaterialProber.Max)),
-                                        card.Styles_Values.Property.Standard);
-                                }
+                                //if (MaterialProber.rangeMode != 0)
+                                //{
+                                //    drawer.NewLine(lineHeight); drawer.DrawIcon(iconDash, 18);
+                                //    drawer.DrawText(string.Format(STRINGS.MATERIAL_PROBE.STAT_RANGE, PatchCommon.FormatTemp(MaterialProber.Min), PatchCommon.FormatTemp(MaterialProber.Max)),
+                                //        card.Styles_Values.Property.Standard);
+                                //}
                                 
                                 drawer.NewLine(spaceHeight);
                                 drawer.NewLine(lineHeight); drawer.DrawIcon(iconDash, 18);
