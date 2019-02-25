@@ -268,16 +268,16 @@ namespace MaterialProbeMod
         }
 
         static MethodInfo m_GameUtil_AddTemperatureUnitSuffix = AccessTools.Method(typeof(GameUtil), "AddTemperatureUnitSuffix", new Type[] { typeof(string) });
-        public static string FormatTemp(float temp)
+        public static string FormatTemp(double temp)
         {
-            temp = GameUtil.GetConvertedTemperature(temp, false);
-            string text = GameUtil.FloatToString(temp, "##0.000");
+            temp = GameUtil.GetConvertedTemperature((float)temp, false);
+            string text = GameUtil.FloatToString((float)temp, "##0.000");
             return (string) m_GameUtil_AddTemperatureUnitSuffix.Invoke(null, new object[] { text });
         }
 
-        public static string FormatMass(float mass)
+        public static string FormatMass(double mass)
         {
-            return GameUtil.GetFormattedMass(mass, GameUtil.TimeSlice.None, GameUtil.MetricMassFormat.UseThreshold, true, mass < 5E-06f ? "{0:0.###}" : "{0:0.000}");
+            return GameUtil.GetFormattedMass((float)mass, GameUtil.TimeSlice.None, GameUtil.MetricMassFormat.UseThreshold, true, mass < 5E-06f ? "{0:0.###}" : "{0:0.000}");
         }
     }
 
@@ -728,11 +728,12 @@ namespace MaterialProbeMod
         public static bool matchConstructed = false;
         public static bool matchBiome = false;
         public static bool ignoreUnusual = true;
-        public static int range = 20;
+        public static int range = 25;
 
         public static int originCell;
         public static HashSet<int> touchedCells = new HashSet<int>();
-        public static Dictionary<uint, float> massByElement = new Dictionary<uint, float>();
+        public static Dictionary<uint, float> valueByElement = new Dictionary<uint, float>();
+        public static List<float> valueList = new List<float>();
         //public static HashSet<int> spaceCells = new HashSet<int>();
         public static Element touchedElement = null;
         public static byte touchedDisease = 0xFF;
@@ -740,9 +741,33 @@ namespace MaterialProbeMod
         public static bool blankedElement;
         public static bool negligbleRange;
         public static int cellCount;
-        public static int accumCount;
-        public static float minMass, maxMass, avgMass, totalMass, minTemp, maxTemp, avgTemp;
+        public static double valueAvg, valueTotal;
+        public static double true_min, true_max;
+        public static double vari, sdv, sdv_n2, sdv_p2, sdv_n1, sdv_p1;
+
         public static double totalThermalEnergy;
+
+        public static int rangeMode = 0;
+        public static double Min { get {
+            return rangeMode == 0 ? true_min :
+                   rangeMode == 1 ? sdv_n2   :
+                                    sdv_n1   ;
+        } }
+        public static double Max { get {
+            return rangeMode == 0 ? true_max :
+                   rangeMode == 1 ? sdv_p2   :
+                                    sdv_p1   ;
+        } }
+        public static double Range { get {
+            return rangeMode == 0 ? true_max - true_min :
+                   rangeMode == 1 ? sdv_p2   - sdv_n2   :
+                                    sdv_p1   - sdv_n1   ;
+        } }
+        public static LocString RangeModeName { get {
+            return rangeMode == 0 ? STRINGS.MATERIAL_PROBE.RANGEMODE_TRUE :
+                   rangeMode == 1 ? STRINGS.MATERIAL_PROBE.RANGEMODE_SDV2 :
+                                    STRINGS.MATERIAL_PROBE.RANGEMODE_SDV1;
+        } }
 
         public static void DoProbe(int originCell)
         {
@@ -816,7 +841,7 @@ namespace MaterialProbeMod
 
             if (touchedCells.Count > 0)
             {
-                float totalTemp = 0;
+                //float totalTemp = 0;
 
                 foreach (var cellI in touchedCells)
                 {
@@ -826,22 +851,12 @@ namespace MaterialProbeMod
                         var celldis = Grid.DiseaseIdx[cellI];
                         var cellgerms = Grid.DiseaseCount[cellI];
                         
-                        if (massByElement.ContainsKey(celldis))
-                            massByElement[celldis] = massByElement[celldis] + cellgerms;
+                        if (valueByElement.ContainsKey(celldis))
+                            valueByElement[celldis] = valueByElement[celldis] + cellgerms;
                         else
-                            massByElement[celldis] = cellgerms;
-                        totalMass += cellgerms;
-                        if (accumCount == 0)
-                        {
-                            minMass = maxMass = cellgerms;
-                        }
-                        else
-                        {
-                            if (cellgerms < minMass) minMass = cellgerms;
-                            if (cellgerms > maxMass) maxMass = cellgerms;
-                        }
-                        accumCount++;
-
+                            valueByElement[celldis] = cellgerms;
+                        
+                        valueList.Add(cellgerms);
                     }
                     else
                     {
@@ -849,30 +864,18 @@ namespace MaterialProbeMod
                         var cellidx = SimMessages.GetElementIndex(cellelem.id);
                         var cellmass = Grid.Mass[cellI];
                         var celltemp = Grid.Temperature[cellI];
+                        var cellvalue = mode == OverlayMode.MASS ? cellmass : celltemp;
 
-                        if (massByElement.ContainsKey((uint)cellidx))
-                            massByElement[(uint)cellidx] = massByElement[(uint)cellidx] + cellmass;
-                        else
-                            massByElement[(uint)cellidx] = cellmass;
-                        totalMass += cellmass;
-                        totalTemp += celltemp;
-                        totalThermalEnergy += (double)celltemp * (double)cellmass * (double)cellelem.specificHeatCapacity;
-                        
                         if ((!cellelem.IsVacuum) && cellelem.id != SimHashes.Unobtanium)
                         {
-                            if (accumCount == 0)
-                            {
-                                minMass = maxMass = cellmass;
-                                minTemp = maxTemp = celltemp;
-                            }
+                            if (valueByElement.ContainsKey((uint)cellidx))
+                                valueByElement[(uint)cellidx] = valueByElement[(uint)cellidx] + cellvalue;
                             else
-                            {
-                                if (cellmass < minMass) minMass = cellmass;
-                                if (cellmass > maxMass) maxMass = cellmass;
-                                if (celltemp < minTemp) minTemp = celltemp;
-                                if (celltemp > maxTemp) maxTemp = celltemp;
-                            }
-                            accumCount++;
+                                valueByElement[(uint)cellidx] = cellvalue;
+
+                            totalThermalEnergy += (double)celltemp * (double)cellmass * (double)cellelem.specificHeatCapacity;
+
+                            valueList.Add(cellvalue);
                         }
                     }
 
@@ -881,21 +884,42 @@ namespace MaterialProbeMod
                     //    spaceCells.Add(cellI);
                 }
 
-                if (accumCount > 0)
+                if (valueList.Count > 0)
                 {
-                    avgMass = totalMass / accumCount;
-                    if (mode != OverlayMode.GERMS)
-                        avgTemp = totalTemp / accumCount;
+                    for (int i = 0; i < valueList.Count; i++)
+                    {
+                        float v = valueList[i];
+                        valueTotal += v;
 
-                    if (mode == OverlayMode.TEMPERATURE)
-                        negligbleRange = (maxTemp - minTemp) / avgTemp < 0.005f;
-                    else
-                        negligbleRange = (maxMass - minMass) / avgMass < 0.005f;
+                        if (i == 0)
+                        {
+                            true_min = true_max = v;
+                        }
+                        else
+                        {
+                            if (v < true_min) true_min = v;
+                            if (v > true_max) true_max = v;
+                        }
+                    }
+                    valueAvg = valueTotal / valueList.Count;
+
+                    double vsdvAccum = 0f;
+                    for (int i = 0; i < valueList.Count; i++)
+                    {
+                        double v = valueList[i] - valueAvg;
+                        vsdvAccum += v*v;
+                    }
+                    vari = vsdvAccum/valueList.Count;
+                    sdv = Math.Sqrt(vari);
+                    sdv_n1 = valueAvg - sdv;
+                    sdv_p1 = valueAvg + sdv;
+                    sdv_n2 = valueAvg - sdv * 2;
+                    sdv_p2 = valueAvg + sdv * 2;
+
+                    negligbleRange = (true_max - true_min) / valueAvg < 0.005f;
                 }
                 else
                 {
-                    avgMass = 0;
-                    avgTemp = 0;
                     negligbleRange = true;
                 }
                 
@@ -905,15 +929,17 @@ namespace MaterialProbeMod
         internal static void Clear()
         {
             touchedCells.Clear();
-            massByElement.Clear();
+            valueByElement.Clear();
+            valueList.Clear();
             //spaceCells.Clear();
             touchedDisease = (byte)0xFF;
             touchedElement = null;
             touchedBiome = ProcGen.SubWorld.ZoneType.Space;
             cellCount = 0;
-            accumCount = 0;
 
-            minMass = maxMass = avgMass = totalMass = minTemp = maxTemp = avgTemp = 0;
+            valueAvg = valueTotal = 0;
+            true_min = true_max = 0;
+            vari = sdv = sdv_n2 = sdv_p2 = sdv_n1 = sdv_p1 = 0;
             totalThermalEnergy = 0;
         }
     }
@@ -1006,7 +1032,7 @@ namespace MaterialProbeMod
             root.AddComponent<CanvasRenderer>();
             var root_layout = root.AddComponent<LayoutElement>();
             root_layout.minWidth = 286;
-            root_layout.minHeight = 270;
+            root_layout.minHeight = 206;
             root.AddComponent<VerticalLayoutGroup>();
 
             GameObject bg = new GameObject("Background");
@@ -1049,6 +1075,7 @@ namespace MaterialProbeMod
         //    Debug.Log("GUI Area:"+ONIJSONContractResolver.Serialize(area));
         //}
 
+        //bool debugHeight = false;
         string typedRange = null;
         //Called automatically by Unity to draw an IMGUI.
         public void OnGUI()
@@ -1090,15 +1117,27 @@ namespace MaterialProbeMod
                     if (GUI.GetNameOfFocusedControl() != "RangeTextField")
                         typedRange = null;
                     
+                    const float adjustWidth = 16;
+                    if (GUILayout.Button("-", GUILayout.Width(adjustWidth)))
+                        MaterialProber.range = MaterialProber.range - (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift) ? 5 : 1);
+                    
                     if (MaterialProber.range < 1) MaterialProber.range = 1;
 
                     MaterialProber.range = (int) GUILayout.HorizontalSlider(MaterialProber.range, 1, 100, GUILayout.ExpandWidth(true));
+
+                    if (GUILayout.Button("+", GUILayout.Width(adjustWidth)))
+                        MaterialProber.range = MaterialProber.range + (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift) ? 5 : 1);
+
                     if (MaterialProber.range < 1) MaterialProber.range = 1;
                 GUILayout.EndHorizontal();
 
                 if (GUILayout.Button(STRINGS.MATERIAL_PROBE.COLOR_PALETTE + PatchCommon.colorPaletteNames[PatchCommon.colorPalette]))
                 {
                     PatchCommon.colorPalette = (PatchCommon.colorPalette + 1) % PatchCommon.colorPaletteNames.Length;
+                }
+                if (GUILayout.Button(STRINGS.MATERIAL_PROBE.RANGEMODE_LABEL + MaterialProber.RangeModeName))
+                {
+                    MaterialProber.rangeMode = (MaterialProber.rangeMode + 1) % 3;
                 }
                 GUILayout.BeginHorizontal();
                     GUILayout.Label(STRINGS.MATERIAL_PROBE.MODE_LABEL, GUILayout.ExpandWidth(false));
@@ -1108,6 +1147,12 @@ namespace MaterialProbeMod
                     if (GUILayout.Toggle(MaterialProber.mode == OverlayMode.BIOME      , STRINGS.MATERIAL_PROBE.MODE_BIOME, GUI.skin.button)) MaterialProber.mode = OverlayMode.BIOME      ;
                 GUILayout.EndHorizontal();
 
+                //if (Event.current.type == EventType.Repaint && !debugHeight)
+                //{
+                //    var r = GUILayoutUtility.GetLastRect();
+                //    Debug.Log("Layout " + (r.yMax));
+                //    debugHeight = true;
+                //}
 
                 GUILayout.EndArea();
             }
@@ -1297,28 +1342,30 @@ namespace MaterialProbeMod
                     color = PatchCommon.GetColorForElement(MaterialProber.touchedElement);
 
                     unitObj = UnitFetch(activeUnitObjs[0], out text, out icon, out tooltip);
-                    text.text = "Greatest Density";
+                    //text.text = "Greatest Density";
+                    text.text = string.Format(">= {0} {1}", PatchCommon.FormatMass(MaterialProber.Max), MaterialProber.touchedElement.name);
                     icon.color = AlmulColor(Color.Lerp(color, SimDebugView_Ctor_Patch.col_dense, SimDebugView_Ctor_Patch.cint_dens));
                     tooltip.toolTip = "Cell in the highlighted region with greatest mass";
 
                     unitObj = UnitFetch(activeUnitObjs[1], out text, out icon, out tooltip);
-                    text.text = "Least Density";
+                    //text.text = "Least Density";
+                    text.text = string.Format("<= {0} {1}", PatchCommon.FormatMass(MaterialProber.Min), MaterialProber.touchedElement.name);
                     icon.color = AlmulColor(Color.Lerp(color, SimDebugView_Ctor_Patch.col_light, SimDebugView_Ctor_Patch.cint_dens));
                     tooltip.toolTip = "Cell in the highlighted region with least mass";
                     break;
 
                 case OverlayMode.TEMPERATURE:
-                    if (MaterialProber.touchedElement == null)
-                        return;
                     color = Color.white;
 
                     unitObj = UnitFetch(activeUnitObjs[0], out text, out icon, out tooltip);
-                    text.text = "Greatest Temperature";
+                    //text.text = "Greatest Temperature";
+                    text.text = string.Format(">= {0}", PatchCommon.FormatTemp(MaterialProber.Max));
                     icon.color = AlmulColor(Color.Lerp(color, SimDebugView_Ctor_Patch.col_hot, SimDebugView_Ctor_Patch.cint_temp));
                     tooltip.toolTip = "Cell in the highlighted region with greatest temperature";
 
                     unitObj = UnitFetch(activeUnitObjs[1], out text, out icon, out tooltip);
-                    text.text = "Least Temperature";
+                    //text.text = "Least Temperature";
+                    text.text = string.Format("<= {0}", PatchCommon.FormatTemp(MaterialProber.Min));
                     icon.color = AlmulColor(Color.Lerp(color, SimDebugView_Ctor_Patch.col_cold, SimDebugView_Ctor_Patch.cint_temp));
                     tooltip.toolTip = "Cell in the highlighted region with least temperature";
                     break;
@@ -1330,12 +1377,14 @@ namespace MaterialProbeMod
                     color = disease.overlayColour;
 
                     unitObj = UnitFetch(activeUnitObjs[0], out text, out icon, out tooltip);
-                    text.text = "Greatest Germs";
+                    //text.text = "Greatest Germs";
+                    text.text = string.Format(">= {0} {1}", GameUtil.GetFormattedDiseaseAmount((int)MaterialProber.Max), disease.Name);
                     icon.color = AlmulColor(new Color(color.r, color.g, color.b, SimDebugView_Ctor_Patch.high_alpha));
                     tooltip.toolTip = "Cell in the highlighted region with greatest germ count";
 
                     unitObj = UnitFetch(activeUnitObjs[1], out text, out icon, out tooltip);
-                    text.text = "Least Germs";
+                    //text.text = "Least Germs";
+                    text.text = string.Format(">= {0} {1}", GameUtil.GetFormattedDiseaseAmount((int)MaterialProber.Min), disease.Name);
                     icon.color = AlmulColor(new Color(color.r, color.g, color.b, SimDebugView_Ctor_Patch.low_alpha));
                     tooltip.toolTip = "Cell in the highlighted region with least germ count";
                     break;
@@ -1577,25 +1626,25 @@ namespace MaterialProbeMod
                         {
                             Klei.AI.Disease disease = Db.Get().Diseases[(byte)MaterialProber.touchedDisease];
 
-                            drawer.DrawText(MaterialProber.massByElement.Count>1 ? STRINGS.MATERIAL_PROBE.MULTIPLE_TYPES.text : disease.Name.ToUpper(), card.Styles_Title.Standard);
+                            drawer.DrawText(MaterialProber.valueByElement.Count>1 ? STRINGS.MATERIAL_PROBE.MULTIPLE_TYPES.text : disease.Name.ToUpper(), card.Styles_Title.Standard);
 
                             drawer.NewLine(lineHeight); drawer.DrawIcon(iconDash, 18);
                             drawer.DrawText(string.Format(STRINGS.MATERIAL_PROBE.CELL_COUNT, MaterialProber.cellCount), card.Styles_Values.Property.Standard);
                                 
                             drawer.NewLine(lineHeight); drawer.DrawIcon(iconDash, 18);
-                            drawer.DrawText(string.Format(STRINGS.MATERIAL_PROBE.STAT_TOTAL, GameUtil.GetFormattedDiseaseAmount((int)MaterialProber.totalMass)),
+                            drawer.DrawText(string.Format(STRINGS.MATERIAL_PROBE.STAT_TOTAL, GameUtil.GetFormattedDiseaseAmount((int)MaterialProber.valueTotal)),
                                 card.Styles_Values.Property.Standard);
-                            if (MaterialProber.massByElement.Count > 1)
+                            if (MaterialProber.valueByElement.Count > 1)
                             {
 
-                                var elemlist = new List<KeyValuePair<uint, float>>(MaterialProber.massByElement);
+                                var elemlist = new List<KeyValuePair<uint, float>>(MaterialProber.valueByElement);
                                 elemlist.Sort((KeyValuePair<uint, float> lhs, KeyValuePair<uint, float> rhs) => rhs.Value.CompareTo(lhs.Value)); //reverse sort
                                 foreach(var eid in elemlist)
                                 {
                                     var ldis = Db.Get().Diseases[(int)eid.Key];
                                         
                                     drawer.NewLine(lineHeight); drawer.DrawIcon(iconDash, 18);
-                                    drawer.DrawText(string.Format(STRINGS.MATERIAL_PROBE.STAT_ELEM, ldis.Name, GameUtil.GetFormattedDiseaseAmount((int)eid.Value), eid.Value / MaterialProber.totalMass * 100, eid.Key == MaterialProber.touchedDisease ? " HERE" : ""),
+                                    drawer.DrawText(string.Format(STRINGS.MATERIAL_PROBE.STAT_ELEM, ldis.Name, GameUtil.GetFormattedDiseaseAmount((int)eid.Value), eid.Value / MaterialProber.valueTotal * 100, eid.Key == MaterialProber.touchedDisease ? " HERE" : ""),
                                         card.Styles_Values.Property.Standard);
                                 }
                             }
@@ -1606,21 +1655,28 @@ namespace MaterialProbeMod
                                 card.Styles_Values.Property.Standard);
 
                             drawer.NewLine(lineHeight); drawer.DrawIcon(iconDash, 18);
-                            drawer.DrawText(string.Format(STRINGS.MATERIAL_PROBE.STAT_AVG, GameUtil.GetFormattedDiseaseAmount((int)MaterialProber.avgMass)),
+                            drawer.DrawText(string.Format(STRINGS.MATERIAL_PROBE.STAT_AVG, GameUtil.GetFormattedDiseaseAmount((int)MaterialProber.valueAvg)),
                                 card.Styles_Values.Property.Standard);
 
                             drawer.NewLine(lineHeight); drawer.DrawIcon(iconDash, 18);
-                            drawer.DrawText(string.Format(STRINGS.MATERIAL_PROBE.STAT_RANGE, GameUtil.GetFormattedDiseaseAmount((int)MaterialProber.minMass), GameUtil.GetFormattedDiseaseAmount((int)MaterialProber.maxMass)),
+                            drawer.DrawText(string.Format(STRINGS.MATERIAL_PROBE.STAT_MINMAX, GameUtil.GetFormattedDiseaseAmount((int)MaterialProber.true_min), GameUtil.GetFormattedDiseaseAmount((int)MaterialProber.true_max)),
                                 card.Styles_Values.Property.Standard);
+                            
+                            if (MaterialProber.rangeMode != 0)
+                            {
+                                drawer.NewLine(lineHeight); drawer.DrawIcon(iconDash, 18);
+                                drawer.DrawText(string.Format(STRINGS.MATERIAL_PROBE.STAT_RANGE, GameUtil.GetFormattedDiseaseAmount((int)MaterialProber.Min), GameUtil.GetFormattedDiseaseAmount((int)MaterialProber.Max)),
+                                    card.Styles_Values.Property.Standard);
+                            }
                         }
                         else if (MaterialProber.mode == OverlayMode.MASS)
                         {
-                            drawer.DrawText(MaterialProber.massByElement.Count > 1 ? STRINGS.MATERIAL_PROBE.MULTIPLE_ELEMENTS.text : MaterialProber.touchedElement.nameUpperCase, card.Styles_Title.Standard);
+                            drawer.DrawText(MaterialProber.valueByElement.Count > 1 ? STRINGS.MATERIAL_PROBE.MULTIPLE_ELEMENTS.text : MaterialProber.touchedElement.nameUpperCase, card.Styles_Title.Standard);
 
                             drawer.NewLine(lineHeight); drawer.DrawIcon(iconDash, 18);
                             drawer.DrawText("Cells: " + MaterialProber.cellCount, card.Styles_Values.Property.Standard);
 
-                            if (MaterialProber.accumCount > 0)
+                            if (MaterialProber.valueList.Count > 0)
                             {
                                 drawer.NewLine(spaceHeight);
                                 drawer.NewLine(lineHeight); drawer.DrawIcon(iconDash, 18);
@@ -1628,18 +1684,25 @@ namespace MaterialProbeMod
                                     card.Styles_Values.Property.Standard);
 
                                 drawer.NewLine(lineHeight); drawer.DrawIcon(iconDash, 18);
-                                drawer.DrawText(string.Format(STRINGS.MATERIAL_PROBE.STAT_AVG, PatchCommon.FormatMass(MaterialProber.avgMass)),
+                                drawer.DrawText(string.Format(STRINGS.MATERIAL_PROBE.STAT_AVG, PatchCommon.FormatMass(MaterialProber.valueAvg)),
                                     card.Styles_Values.Property.Standard);
 
                                 drawer.NewLine(lineHeight); drawer.DrawIcon(iconDash, 18);
-                                drawer.DrawText(string.Format(STRINGS.MATERIAL_PROBE.STAT_RANGE, PatchCommon.FormatMass(MaterialProber.minMass), PatchCommon.FormatMass(MaterialProber.maxMass)),
+                                drawer.DrawText(string.Format(STRINGS.MATERIAL_PROBE.STAT_MINMAX, PatchCommon.FormatMass(MaterialProber.true_min), PatchCommon.FormatMass(MaterialProber.true_max)),
                                     card.Styles_Values.Property.Standard);
                                 
+                                if (MaterialProber.rangeMode != 0)
+                                {
+                                    drawer.NewLine(lineHeight); drawer.DrawIcon(iconDash, 18);
+                                    drawer.DrawText(string.Format(STRINGS.MATERIAL_PROBE.STAT_RANGE, PatchCommon.FormatMass(MaterialProber.Min), PatchCommon.FormatMass(MaterialProber.Max)),
+                                        card.Styles_Values.Property.Standard);
+                                }
+
                                 if (MaterialProber.touchedElement.IsSolid)
                                 {
                                     drawer.NewLine(spaceHeight);
                                     drawer.NewLine(lineHeight); drawer.DrawIcon(iconDash, 18);
-                                    drawer.DrawText(string.Format(STRINGS.MATERIAL_PROBE.STAT_HARV, PatchCommon.FormatMass(MaterialProber.totalMass * 0.5f)), //based on magic constant in WorldDamage.OnDigComplete
+                                    drawer.DrawText(string.Format(STRINGS.MATERIAL_PROBE.STAT_HARV, PatchCommon.FormatMass(MaterialProber.valueTotal * 0.5f)), //based on magic constant in WorldDamage.OnDigComplete
                                         card.Styles_Values.Property.Standard);
                                 }
                                 //if (MaterialProber.touchedElement.IsGas || MaterialProber.touchedElement.IsLiquid)
@@ -1661,15 +1724,15 @@ namespace MaterialProbeMod
 
                                 drawer.NewLine(spaceHeight);
                                 drawer.NewLine(lineHeight); drawer.DrawIcon(iconDash, 18);
-                                drawer.DrawText(string.Format(STRINGS.MATERIAL_PROBE.STAT_TOTAL, PatchCommon.FormatMass(MaterialProber.totalMass)),
+                                drawer.DrawText(string.Format(STRINGS.MATERIAL_PROBE.STAT_TOTAL, PatchCommon.FormatMass(MaterialProber.valueTotal)),
                                     card.Styles_Values.Property.Standard);
                                 
-                                if (MaterialProber.massByElement.Count > 1)
+                                if (MaterialProber.valueByElement.Count > 1)
                                 {
                                     Sprite iconGas    = Assets.GetSprite("lots"); //or "little"
                                     Sprite iconLiquid = Assets.GetSprite("action_bottler_delivery");
                                     Sprite iconSolid  = Assets.GetSprite("status_item_wrong_resource_in_pipe");
-                                    var elemlist = new List<KeyValuePair<uint, float>>(MaterialProber.massByElement);
+                                    var elemlist = new List<KeyValuePair<uint, float>>(MaterialProber.valueByElement);
                                     elemlist.Sort((KeyValuePair<uint, float> lhs, KeyValuePair<uint, float> rhs) => rhs.Value.CompareTo(lhs.Value)); //reverse sort
                                     foreach(var eid in elemlist)
                                     {
@@ -1685,7 +1748,7 @@ namespace MaterialProbeMod
 
                                         string loc = STRINGS.MATERIAL_PROBE.STAT_ELEM;
                                         if (elem == MaterialProber.touchedElement) loc = "<b>"+loc+"</b>";
-                                        drawer.DrawText(string.Format(loc, elem.name, PatchCommon.FormatMass(eid.Value), eid.Value / MaterialProber.totalMass * 100),
+                                        drawer.DrawText(string.Format(loc, elem.name, PatchCommon.FormatMass(eid.Value), eid.Value / MaterialProber.valueTotal * 100),
                                             card.Styles_Values.Property.Standard);
                                     }
                                 }
@@ -1693,12 +1756,12 @@ namespace MaterialProbeMod
                         }
                         else if (MaterialProber.mode == OverlayMode.TEMPERATURE)
                         {
-                            drawer.DrawText(MaterialProber.massByElement.Count > 1 ? STRINGS.MATERIAL_PROBE.MULTIPLE_ELEMENTS.text : MaterialProber.touchedElement.nameUpperCase, card.Styles_Title.Standard);
+                            drawer.DrawText(MaterialProber.valueByElement.Count > 1 ? STRINGS.MATERIAL_PROBE.MULTIPLE_ELEMENTS.text : MaterialProber.touchedElement.nameUpperCase, card.Styles_Title.Standard);
 
                             drawer.NewLine(lineHeight); drawer.DrawIcon(iconDash, 18);
                             drawer.DrawText("Cells: " + MaterialProber.cellCount, card.Styles_Values.Property.Standard);
 
-                            if (MaterialProber.accumCount > 0)
+                            if (MaterialProber.valueList.Count > 0)
                             {
                                 drawer.NewLine(spaceHeight);
                                 drawer.NewLine(lineHeight); drawer.DrawIcon(iconDash, 18);
@@ -1706,13 +1769,19 @@ namespace MaterialProbeMod
                                     card.Styles_Values.Property.Standard);
 
                                 drawer.NewLine(lineHeight); drawer.DrawIcon(iconDash, 18);
-                                drawer.DrawText(string.Format(STRINGS.MATERIAL_PROBE.STAT_AVG, PatchCommon.FormatTemp(MaterialProber.avgTemp)),
+                                drawer.DrawText(string.Format(STRINGS.MATERIAL_PROBE.STAT_AVG, PatchCommon.FormatTemp(MaterialProber.valueAvg)),
                                     card.Styles_Values.Property.Standard);
 
                                 drawer.NewLine(lineHeight); drawer.DrawIcon(iconDash, 18);
-                                drawer.DrawText(string.Format(STRINGS.MATERIAL_PROBE.STAT_RANGE, PatchCommon.FormatTemp(MaterialProber.minTemp), PatchCommon.FormatTemp(MaterialProber.maxTemp)),
+                                drawer.DrawText(string.Format(STRINGS.MATERIAL_PROBE.STAT_MINMAX, PatchCommon.FormatTemp(MaterialProber.true_min), PatchCommon.FormatTemp(MaterialProber.true_max)),
                                     card.Styles_Values.Property.Standard);
-
+                                
+                                if (MaterialProber.rangeMode != 0)
+                                {
+                                    drawer.NewLine(lineHeight); drawer.DrawIcon(iconDash, 18);
+                                    drawer.DrawText(string.Format(STRINGS.MATERIAL_PROBE.STAT_RANGE, PatchCommon.FormatTemp(MaterialProber.Min), PatchCommon.FormatTemp(MaterialProber.Max)),
+                                        card.Styles_Values.Property.Standard);
+                                }
                                 
                                 drawer.NewLine(spaceHeight);
                                 drawer.NewLine(lineHeight); drawer.DrawIcon(iconDash, 18);
@@ -1824,8 +1893,9 @@ namespace MaterialProbeMod
                         Color color = disease.overlayColour;
                         if (probed)
                         {
-                            float f = (Grid.DiseaseCount[cell] - MaterialProber.minMass) / (MaterialProber.maxMass - MaterialProber.minMass);
-
+                            float f = (float)((Grid.DiseaseCount[cell] - MaterialProber.Min) / MaterialProber.Range);
+                            f = Mathf.Clamp01(f);
+                            
                             color.a = low_alpha + (high_alpha-low_alpha) * f;
                         }
                         else
@@ -1867,7 +1937,8 @@ namespace MaterialProbeMod
                             {
                                 if (MaterialProber.mode == OverlayMode.TEMPERATURE)
                                 {
-                                    float f = (Grid.Temperature[cell] - MaterialProber.minTemp) / (MaterialProber.maxTemp - MaterialProber.minTemp);
+                                    float f = (float)((Grid.Temperature[cell] - MaterialProber.Min) / MaterialProber.Range);
+                                    f = Mathf.Clamp01(f);
                                     if (f < 0.5)
                                         color = Color.Lerp(color, col_cold, (0.5f - f) * 2 * cint_temp);
                                     else
@@ -1875,7 +1946,8 @@ namespace MaterialProbeMod
                                 }
                                 else
                                 {
-                                    float f = (Grid.Mass[cell] - MaterialProber.minMass) / (MaterialProber.maxMass - MaterialProber.minMass);
+                                    float f = (float)((Grid.Mass[cell] - MaterialProber.Min) / MaterialProber.Range);
+                                    f = Mathf.Clamp01(f);
                                     if (f < 0.5)
                                         color = Color.Lerp(color, col_light, (0.5f - f) * 2 * cint_dens);
                                     else
@@ -1917,6 +1989,11 @@ namespace STRINGS
         public static LocString MATCH_CONSTRUCTED = "Match Constructed";
         public static LocString MATCH_BIOME       = "Match Biome";
         public static LocString IGNORE_UNUSUAL    = "Ignore Abysallite/Neutronium";
+        public static LocString RANGE_FIELD       = "Probe Range: ";
+        public static LocString RANGEMODE_LABEL    = "Range Display: ";
+        public static LocString RANGEMODE_TRUE    = "True Min/Max";
+        public static LocString RANGEMODE_SDV2    = "2 Std. Dev.";
+        public static LocString RANGEMODE_SDV1    = "1 Std. Dev.";
         public static LocString COLOR_PALETTE     = "Color Palette: ";
         public static LocString MODE_LABEL        = "Mode: ";
         public static LocString MODE_MASS         = "Mass";
@@ -1926,6 +2003,7 @@ namespace STRINGS
         public static LocString CELL_COUNT  = "Cells: {0}";
         public static LocString STAT_HERE  = "Here: {0}";
         public static LocString STAT_AVG   = "Avg.: {0}";
+        public static LocString STAT_MINMAX = "Min/Max: {0} - {1}";
         public static LocString STAT_RANGE = "Range: {0} - {1}";
         public static LocString STAT_TOTAL = "Total: {0}";
         public static LocString STAT_ELEM = "{2:f1}% {0}: {1}";
