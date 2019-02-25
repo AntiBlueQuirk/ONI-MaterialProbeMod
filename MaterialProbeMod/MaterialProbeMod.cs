@@ -1056,7 +1056,7 @@ namespace MaterialProbeMod
             //All parts of ONI's UI should have a Canvas as an ancestor.
             var canvas = GetComponentInParent<Canvas>();
             //Try to suppress drawing while the "anchor box" is not visible. Doesn't always seem to work.
-            if (isActiveAndEnabled && gameObject.activeInHierarchy && canvas != null)
+            if (isActiveAndEnabled && gameObject.activeInHierarchy && canvas != null && !DebugHandler.HideUI)
             {
                 var rt = (RectTransform)this.transform;
                 //the area of the anchor box is the area we want to draw IMGUI in.
