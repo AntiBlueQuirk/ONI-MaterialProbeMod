@@ -31,6 +31,15 @@ If checked:
 
 The Range simply controls how far the probe is allowed to reach. The color palette determines which colors the probe uses to show elements. The default should be fine for most people.
 
+Color Palettes:
+
+ - Default (Recommended) - The same as UI, but some colors are overridden to be more unique from other colors.
+ - Substance - The substance color of the element, as specified by the game.
+ - UI - The ui color of the element, as specified by the game.
+ - Conduit - The conduit color of the element, as specified by the game.
+ - Hash - A color generated based on the name of the element. These colors tend to be very random.
+ - Flat - All elements are colored white. This is useful if you care more about density than the element.
+
 ## FAQ
 
  - Why is the UI bad?

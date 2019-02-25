@@ -97,7 +97,8 @@ namespace MaterialProbeMod
             "Substance",
             "UI",
             "Conduit",
-            "Hash"
+            "Hash",
+            "Flat"
         };
         public static Dictionary<SimHashes, Color> colorOverride = new Dictionary<SimHashes, Color>();
 
@@ -193,6 +194,7 @@ namespace MaterialProbeMod
                         int hash = Hash.SDBMLower(e.name);
                         color = new Color32((byte)(hash & 0xFF), (byte)((hash >> 8) & 0xFF), (byte)((hash >> 16) & 0xFF), 0xFF);
                     } break;
+                case 5: color = Color.white; break;
             }
 
             //if (mod_MaterialColor_SimHashesExtension != null)
