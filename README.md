@@ -17,7 +17,7 @@ The Material Probe looks at an area of cells (tiles) and analyzes them to determ
 
 In each mode (except Biome), the probe will give you information about the range of properties in the area: minimum, maximum and average. The area will also be colored according to that range. For instance in Temperature mode, the blue area represents the lowest temperature in the area, and the red area represents the hottest area.
 
-This mod makes absolutely *no gameplay changes*. Technically, it doesn't even give you information you don't already have access too, only improving your tools to interpret it. You can add and remove the mod from your game as much as you like.
+This mod makes absolutely *no gameplay changes*. Technically, it doesn't even give you information you don't already have access to, only improving your tools to interpret it. You can add and remove the mod from your game as much as you like.
 
 ## What Are These Settings?
 
@@ -50,11 +50,12 @@ Range Display controls what values the probe uses for shading. The probe needs a
  
 ## FAQ
 
- - Why is the UI bad?
-   - Because the UI in Oxygen Not Included is built out of prefabs in the Unity Editor. I don't have access to the Editor for the game, or most of the prefabs, so building a proper looking UI is hard. I would have to steal prefabs from other parts of the UI and then put everything together with code. Instead, I used Unity's IMGUI to just get it working.
  - What does NEGLIGIBLE RANGE mean?
    - There is a very small range of density/temperature over the area you're probing, so the probe won't show the greatest/least or hottest/coldest colors in the area.
  - The probe area doesn't show density shading, or it all shows as hot/cold.
    - There may be a very dense/light or hot/cold cell in the area you're probing. In min/max mode density/temperature shading has to cover the whole range, so an extreme value can make the shading very flat. In particular, gases can be tricky, because even if your whole base averages 1800 g, there might be a few tiles with only a few hundred grams. Try changing the Range Display setting.
  - Hey, this cell is colored blue, but it's boiling hot here!
    - Remember that the shading is *relative*. That blue spot may be 100 degrees, but it's still the coolest area in the area you're looking at.
+ - Why is the UI bad?
+   - Because the UI in Oxygen Not Included is built out of prefabs in the Unity Editor. I don't have access to the Editor for the game, or most of the prefabs, so building a proper looking UI is hard. I would have to steal prefabs from other parts of the UI and then put everything together with code. Instead, I used Unity's IMGUI to just get it working.
+ 
