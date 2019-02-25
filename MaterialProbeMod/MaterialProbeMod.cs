@@ -172,13 +172,13 @@ namespace MaterialProbeMod
                         if (colorOverride.TryGetValue(e.id, out color))
                         {
                             if (color.r < 0)
-                                goto case 1;
-                            if (color.g < 0)
                                 goto case 2;
-                            if (color.b < 0)
+                            if (color.g < 0)
                                 goto case 3;
-                            if (color.a < 0)
+                            if (color.b < 0)
                                 goto case 4;
+                            if (color.a < 0)
+                                goto case 5;
                             //else just use whatever the color was.
                         }
                         else

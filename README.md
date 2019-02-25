@@ -29,7 +29,7 @@ If checked:
  - Match Biome - The probe only includes cells in the same biome as the first cell.
  - Ignore Abysallite/Neutronium - The probe ignores Abysallite and Neutronium, since they usually have weird mass/temperature.
 
-The Range simply controls how far the probe is allowed to reach. The color palette determines which colors the probe uses to show elements. The default should be fine for most people.
+The Range simply controls how far the probe is allowed to reach. The color palette determines which colors the probe uses to show elements. The default should be fine for most people. The - and + adjust the range by 1, or 5 if you hold Shift.
 
 Color Palettes:
 
@@ -40,6 +40,12 @@ Color Palettes:
  - (Hold Shift) Conduit - The conduit color of the element, as specified by the game.
  - (Hold Shift) Hash - A color generated based on the name of the element. These colors tend to be very random.
 
+Range Display controls what values the probe uses for shading. The probe needs a "high" value and a "low" value. Normally, the high value is the maximum value in the probe, and the low value is the minimum value in the probe. However, this can cause problems if there are extreme values. For instance, if you have 100 cells of about 1000g of Oxygen, but one cell has 10g instead, all the shading around 1000g will be lost, because of the single low value. The alternate range displays use some light statistics to get better range values. In any case, what values are represented by each shade are shown in the settings panel.
+
+ - Min/Max - The high and low values are the maximum and minimum values, respectively. The most intuitive, but can have artifacts.
+ - 2 Std. Dev. - The high and low values are 2 standard deviations above and below the average, respectively. This can be confusing if you don't know what that means, but generally results in much better shading.
+ - 1 Std. Dev. - The same as above, but uses 1 standard deviation instead.
+ 
 ## FAQ
 
  - Why is the UI bad?
@@ -47,4 +53,4 @@ Color Palettes:
  - What does NEGLIGIBLE RANGE mean?
    - There is a very small range of density/temperature over the area you're probing, so the probe won't show the greatest/least or hottest/coldest colors in the area.
  - The probe area doesn't show density shading, or it all shows as hot/cold.
-   - There may be a very dense/light or hot/cold cell in the area you're probing. The density/temperature shading has to cover the whole range, so an extreme value can make the shading very flat. Look at the minimum/maximum of the probe area, then try adjusting the probe settings or try probing a smaller area. In particular, gases can be tricky, because even if your whole base averages 1800 g, there might be a few tiles with only a few hundred grams.
+   - There may be a very dense/light or hot/cold cell in the area you're probing. In min/max mode density/temperature shading has to cover the whole range, so an extreme value can make the shading very flat. In particular, gases can be tricky, because even if your whole base averages 1800 g, there might be a few tiles with only a few hundred grams. Try changing the Range Display setting.
