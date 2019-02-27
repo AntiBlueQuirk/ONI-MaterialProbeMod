@@ -1994,7 +1994,7 @@ namespace STRINGS
         public static LocString MATCH_BIOME       = "Match Biome";
         public static LocString IGNORE_UNUSUAL    = "Ignore Abysallite/Neutronium";
         public static LocString RANGE_FIELD       = "Probe Range: ";
-        public static LocString RANGEMODE_LABEL    = "Range Display: ";
+        public static LocString RANGEMODE_LABEL    = "Shading: ";
         public static LocString RANGEMODE_TRUE    = "True Min/Max";
         public static LocString RANGEMODE_SDV2    = "2 Std. Dev.";
         public static LocString RANGEMODE_SDV1    = "1 Std. Dev.";
