@@ -16,62 +16,124 @@ namespace MaterialProbeMod
     {
         public const string ModName = "MaterialProbeMod";
         public static readonly string ModPath = ("Mods/" + ModName + "/").Replace('/', Path.DirectorySeparatorChar);
-        public static readonly string ModConfig = ModPath + "config.json";
+        public static readonly string ModConfig = ("Mods/" + ModName + ".json").Replace('/', Path.DirectorySeparatorChar);
 
         //Called by ModLoader
         public static void OnLoad()
         {
-            //ReadConfigOrReset();
+            ReadConfigOrReset();
+            //AppDomain.CurrentDomain.ProcessExit += (s, e) => SaveConfigIfDirty(); //Doesn't work?
         }
 
-        ////Dead simple config handling.
-        //public static PriorExperienceModConfig config;
-        //
-        //public static void ReadConfigOrReset()
-        //{
-        //    config = new PriorExperienceModConfig();
-        //    string path = ("Mods/"+ModName+".json").Replace('/', Path.DirectorySeparatorChar);
-        //    JsonSerializer serializer = JsonSerializer.CreateDefault(new JsonSerializerSettings { Formatting = Formatting.Indented });
-        //    if (File.Exists(path))
-        //    {
-        //        try
-        //        {
-        //            PriorExperienceModConfig new_config;
-        //            using (StreamReader streamReader = new StreamReader(path))
-        //            {
-        //                using (JsonTextReader jsonTextReader = new JsonTextReader(streamReader))
-        //                {
-        //                    new_config = serializer.Deserialize<PriorExperienceModConfig>(jsonTextReader);
-        //                    config = new_config;
-        //                }
-        //            }
-        //        }
-        //        catch (IOException ex)
-        //        {
-        //            Debug.Log(ModName + ": Couldn't read config, using defaults: " + ex.ToString());
-        //        }
-        //        catch (JsonException ex)
-        //        {
-        //            Debug.Log(ModName + ": Invalid config, using defaults: " + ex.ToString());
-        //        }
-        //    } else {
-        //        Debug.Log(ModName + ": Config not found, writing defaults.");
-        //        using (StreamWriter streamWriter = new StreamWriter(path))
-        //        {
-        //            using (JsonTextWriter jsonTextWriter = new JsonTextWriter(streamWriter))
-        //            {
-        //                serializer.Serialize(jsonTextWriter, config);
-        //            }
-        //        }
-        //    }
-        //}
-        //
-        //[JsonObject(MemberSerialization.OptIn)]
-        //public class PriorExperienceModConfig
-        //{
-        //    [JsonProperty]
-        //    public float StepDownSpeedMultiplier { get; set; } = 1.3f; //30% faster by default
-        //}
+        //Dead simple config handling.
+        public static MaterialProbeConfig config;
+        [JsonObject(MemberSerialization.OptIn)]
+        public class MaterialProbeConfig
+        {
+            public bool dirty = false;
+            [JsonProperty]
+            public bool CamoflageNeutronium { get; set; } = true;
+            [JsonProperty]
+            public bool ProberMatchElement { get; set; } = false;
+            [JsonProperty]
+            public bool ProberMatchPhase { get; set; } = true;
+            [JsonProperty]
+            public bool ProberMatchConstructed { get; set; } = false;
+            [JsonProperty]
+            public bool ProberMatchBiome { get; set; } = false;
+            [JsonProperty]
+            public bool ProberIgnoreUnusual { get; set; } = true;
+            [JsonProperty]
+            public int ProberRange { get; set; } = 25;
+            [JsonProperty]
+            public int ProberColorPalette { get; set; } = 0;
+            [JsonProperty]
+            public int ProberShadingMode { get; set; } = 0;
+            [JsonProperty]
+            public int ProberMode { get; set; } = 0;
+        }
+
+        public static void ValidateAndReadSettings()
+        {
+            if (config.ProberRange        < 0 || config.ProberRange        > 100                                  ) config.ProberRange = 25;
+            if (config.ProberColorPalette < 0 || config.ProberColorPalette >= PatchCommon.colorPaletteNames.Length) config.ProberColorPalette = 0;
+            if (config.ProberShadingMode  < 0 || config.ProberShadingMode  >= 3                                   ) config.ProberShadingMode = 0;
+            if (config.ProberMode         < 0 || config.ProberMode         >= (int)OverlayMode.LAST               ) config.ProberMode = 0;
+
+            MaterialProber.matchElement     = MaterialProbeModMain.config.ProberMatchElement;
+            MaterialProber.matchPhase       = MaterialProbeModMain.config.ProberMatchPhase;
+            MaterialProber.matchConstructed = MaterialProbeModMain.config.ProberMatchConstructed;
+            MaterialProber.matchBiome       = MaterialProbeModMain.config.ProberMatchBiome;
+            MaterialProber.ignoreUnusual    = MaterialProbeModMain.config.ProberIgnoreUnusual;
+            MaterialProber.range            = MaterialProbeModMain.config.ProberRange;  
+            PatchCommon.colorPalette        = MaterialProbeModMain.config.ProberColorPalette;
+            MaterialProber.shadingMode      = MaterialProbeModMain.config.ProberShadingMode;
+            MaterialProber.mode             = (OverlayMode)MaterialProbeModMain.config.ProberMode;    
+        }
+        public static void SaveConfigIfDirty()
+        {
+            if (config.dirty)
+                SaveConfig();
+        }
+        public static void SaveConfig()
+        {
+            try
+            {
+                JsonSerializer serializer = JsonSerializer.CreateDefault(new JsonSerializerSettings { Formatting = Formatting.Indented });
+                using (StreamWriter streamWriter = new StreamWriter(ModConfig))
+                {
+                    using (JsonTextWriter jsonTextWriter = new JsonTextWriter(streamWriter))
+                    {
+                        serializer.Serialize(jsonTextWriter, config);
+                    }
+                }
+            } catch (IOException ex) {
+                Debug.Log(ModName + ": Failed to save config.");
+            }
+            config.dirty = false;
+        }
+        public static void ReadConfigOrReset()
+        {
+            config = new MaterialProbeConfig();
+
+            JsonSerializer serializer = JsonSerializer.CreateDefault(new JsonSerializerSettings { Formatting = Formatting.Indented });
+            if (File.Exists(ModConfig))
+            {
+                try
+                {
+                    MaterialProbeConfig new_config;
+                    using (StreamReader streamReader = new StreamReader(ModConfig))
+                    {
+                        using (JsonTextReader jsonTextReader = new JsonTextReader(streamReader))
+                        {
+                            new_config = serializer.Deserialize<MaterialProbeConfig>(jsonTextReader);
+                            config = new_config;
+                            ValidateAndReadSettings();
+                        }
+                    }
+                }
+                catch (IOException ex)
+                {
+                    Debug.Log(ModName + ": Couldn't read config, using defaults: " + ex.ToString());
+                }
+                catch (JsonException ex)
+                {
+                    Debug.Log(ModName + ": Invalid config, using defaults: " + ex.ToString());
+                }
+            } else {
+                Debug.Log(ModName + ": Config not found, writing defaults.");
+                SaveConfig();
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(SaveLoader), "Save", typeof(string), typeof(bool), typeof(bool))]
+    public static class SaveLoader_Save_Patch
+    {
+        public static void Postfix()
+        {
+            MaterialProbeModMain.SaveConfigIfDirty();
+        }
     }
 
     public enum OverlayMode
@@ -80,6 +142,7 @@ namespace MaterialProbeMod
         TEMPERATURE,
         GERMS,
         BIOME,
+        LAST,
     }
     public static class PatchCommon
     {
@@ -164,6 +227,9 @@ namespace MaterialProbeMod
 
         public static Color GetColorForElement(Element e)
         {
+            if (MaterialProbeModMain.config.CamoflageNeutronium && e.id == SimHashes.Unobtanium)
+                e = ElementLoader.FindElementByHash(SimHashes.Granite);
+
             Color color;
             switch (colorPalette)
             {
@@ -747,25 +813,25 @@ namespace MaterialProbeMod
 
         public static double totalThermalEnergy;
 
-        public static int rangeMode = 0;
+        public static int shadingMode = 0;
         public static double Min { get {
-            return rangeMode == 0 ? true_min :
-                   rangeMode == 1 ? sdv_n2   :
+            return shadingMode == 0 ? true_min :
+                   shadingMode == 1 ? sdv_n2   :
                                     sdv_n1   ;
         } }
         public static double Max { get {
-            return rangeMode == 0 ? true_max :
-                   rangeMode == 1 ? sdv_p2   :
+            return shadingMode == 0 ? true_max :
+                   shadingMode == 1 ? sdv_p2   :
                                     sdv_p1   ;
         } }
         public static double Range { get {
-            return rangeMode == 0 ? true_max - true_min :
-                   rangeMode == 1 ? sdv_p2   - sdv_n2   :
+            return shadingMode == 0 ? true_max - true_min :
+                   shadingMode == 1 ? sdv_p2   - sdv_n2   :
                                     sdv_p1   - sdv_n1   ;
         } }
         public static LocString RangeModeName { get {
-            return rangeMode == 0 ? STRINGS.MATERIAL_PROBE.RANGEMODE_TRUE :
-                   rangeMode == 1 ? STRINGS.MATERIAL_PROBE.RANGEMODE_SDV2 :
+            return shadingMode == 0 ? STRINGS.MATERIAL_PROBE.RANGEMODE_TRUE :
+                   shadingMode == 1 ? STRINGS.MATERIAL_PROBE.RANGEMODE_SDV2 :
                                     STRINGS.MATERIAL_PROBE.RANGEMODE_SDV1;
         } }
 
@@ -819,7 +885,7 @@ namespace MaterialProbeMod
                         (!matchBiome || Game.Instance.world.zoneRenderData.GetSubWorldZoneType(fcell) == touchedBiome) &&
                         (!ignoreUnusual || (
                             Grid.Element[fcell].id != SimHashes.Katairite &&
-                            Grid.Element[fcell].id != SimHashes.Unobtanium
+                            (Grid.Element[fcell].id != SimHashes.Unobtanium || MaterialProbeModMain.config.CamoflageNeutronium)
                         )) &&
                         //Foundation cells are things like basic tiles and airflow tiles.
                         //For solids, we'd like to consider foundation and non-foundation tiles separately.
@@ -865,8 +931,8 @@ namespace MaterialProbeMod
                         var cellmass = Grid.Mass[cellI];
                         var celltemp = Grid.Temperature[cellI];
                         var cellvalue = mode == OverlayMode.MASS ? cellmass : celltemp;
-
-                        if ((!cellelem.IsVacuum) && cellelem.id != SimHashes.Unobtanium)
+                        
+                        if ((!cellelem.IsVacuum) && cellelem.id != SimHashes.Unobtanium && (!MaterialProbeModMain.config.CamoflageNeutronium || cellelem.id != SimHashes.Unobtanium))
                         {
                             if (valueByElement.ContainsKey((uint)cellidx))
                                 valueByElement[(uint)cellidx] = valueByElement[(uint)cellidx] + cellvalue;
@@ -1141,7 +1207,7 @@ namespace MaterialProbeMod
                 }
                 if (GUILayout.Button(STRINGS.MATERIAL_PROBE.RANGEMODE_LABEL + MaterialProber.RangeModeName))
                 {
-                    MaterialProber.rangeMode = (MaterialProber.rangeMode + 1) % 3;
+                    MaterialProber.shadingMode = (MaterialProber.shadingMode + 1) % 3;
                 }
                 GUILayout.BeginHorizontal();
                     GUILayout.Label(STRINGS.MATERIAL_PROBE.MODE_LABEL, GUILayout.ExpandWidth(false));
@@ -1159,6 +1225,32 @@ namespace MaterialProbeMod
                 //}
 
                 GUILayout.EndArea();
+            }
+        }
+        void OnDisable()
+        {
+            if (
+               (MaterialProbeModMain.config.ProberMatchElement     != MaterialProber.matchElement)
+            || (MaterialProbeModMain.config.ProberMatchPhase       != MaterialProber.matchPhase)
+            || (MaterialProbeModMain.config.ProberMatchConstructed != MaterialProber.matchConstructed)
+            || (MaterialProbeModMain.config.ProberMatchBiome       != MaterialProber.matchBiome)
+            || (MaterialProbeModMain.config.ProberIgnoreUnusual    != MaterialProber.ignoreUnusual)
+            || (MaterialProbeModMain.config.ProberRange            != MaterialProber.range)
+            || (MaterialProbeModMain.config.ProberColorPalette     != PatchCommon.colorPalette)
+            || (MaterialProbeModMain.config.ProberShadingMode      != MaterialProber.shadingMode)
+            || (MaterialProbeModMain.config.ProberMode             != (int)MaterialProber.mode)
+            ) {
+                MaterialProbeModMain.config.ProberMatchElement     = MaterialProber.matchElement;
+                MaterialProbeModMain.config.ProberMatchPhase       = MaterialProber.matchPhase;
+                MaterialProbeModMain.config.ProberMatchConstructed = MaterialProber.matchConstructed;
+                MaterialProbeModMain.config.ProberMatchBiome       = MaterialProber.matchBiome;
+                MaterialProbeModMain.config.ProberIgnoreUnusual    = MaterialProber.ignoreUnusual;
+                MaterialProbeModMain.config.ProberRange            = MaterialProber.range;
+                MaterialProbeModMain.config.ProberColorPalette     = PatchCommon.colorPalette;
+                MaterialProbeModMain.config.ProberShadingMode      = MaterialProber.shadingMode;
+                MaterialProbeModMain.config.ProberMode             = (int)MaterialProber.mode;
+                MaterialProbeModMain.config.dirty = true;
+                //MaterialProbeModMain.SaveConfig();
             }
         }
     }
@@ -1666,7 +1758,7 @@ namespace MaterialProbeMod
                             drawer.DrawText(string.Format(STRINGS.MATERIAL_PROBE.STAT_MINMAX, GameUtil.GetFormattedDiseaseAmount((int)MaterialProber.true_min), GameUtil.GetFormattedDiseaseAmount((int)MaterialProber.true_max)),
                                 card.Styles_Values.Property.Standard);
                             
-                            //if (MaterialProber.rangeMode != 0)
+                            //if (MaterialProber.shadingMode != 0)
                             //{
                             //    drawer.NewLine(lineHeight); drawer.DrawIcon(iconDash, 18);
                             //    drawer.DrawText(string.Format(STRINGS.MATERIAL_PROBE.STAT_RANGE, GameUtil.GetFormattedDiseaseAmount((int)MaterialProber.Min), GameUtil.GetFormattedDiseaseAmount((int)MaterialProber.Max)),
@@ -1695,7 +1787,7 @@ namespace MaterialProbeMod
                                 drawer.DrawText(string.Format(STRINGS.MATERIAL_PROBE.STAT_MINMAX, PatchCommon.FormatMass(MaterialProber.true_min), PatchCommon.FormatMass(MaterialProber.true_max)),
                                     card.Styles_Values.Property.Standard);
                                 
-                                //if (MaterialProber.rangeMode != 0)
+                                //if (MaterialProber.shadingMode != 0)
                                 //{
                                 //    drawer.NewLine(lineHeight); drawer.DrawIcon(iconDash, 18);
                                 //    drawer.DrawText(string.Format(STRINGS.MATERIAL_PROBE.STAT_RANGE, PatchCommon.FormatMass(MaterialProber.Min), PatchCommon.FormatMass(MaterialProber.Max)),
@@ -1780,7 +1872,7 @@ namespace MaterialProbeMod
                                 drawer.DrawText(string.Format(STRINGS.MATERIAL_PROBE.STAT_MINMAX, PatchCommon.FormatTemp(MaterialProber.true_min), PatchCommon.FormatTemp(MaterialProber.true_max)),
                                     card.Styles_Values.Property.Standard);
                                 
-                                //if (MaterialProber.rangeMode != 0)
+                                //if (MaterialProber.shadingMode != 0)
                                 //{
                                 //    drawer.NewLine(lineHeight); drawer.DrawIcon(iconDash, 18);
                                 //    drawer.DrawText(string.Format(STRINGS.MATERIAL_PROBE.STAT_RANGE, PatchCommon.FormatTemp(MaterialProber.Min), PatchCommon.FormatTemp(MaterialProber.Max)),
@@ -1931,7 +2023,7 @@ namespace MaterialProbeMod
                         //    //both
                         //    __result = Color.Lerp(color, new Color(0.9f, 1.0f, 0.9f), 0.2f);
                         //}
-                        if (elem.IsVacuum || elem.id == SimHashes.Unobtanium)
+                        if (elem.IsVacuum || (elem.id == SimHashes.Unobtanium && !MaterialProbeModMain.config.CamoflageNeutronium))
                         {
                             color.a = blanked_alpha;
                         }
@@ -1941,7 +2033,32 @@ namespace MaterialProbeMod
                             {
                                 if (MaterialProber.mode == OverlayMode.TEMPERATURE)
                                 {
-                                    float f = (float)((Grid.Temperature[cell] - MaterialProber.Min) / MaterialProber.Range);
+                                    float v = Grid.Temperature[cell];
+                                    if (MaterialProbeModMain.config.CamoflageNeutronium && Grid.Element[cell].id == SimHashes.Unobtanium)
+                                    {
+                                        int c2; float nv = 0; int nc = 0;
+                                        
+                                        c2 = Grid.CellAbove(cell);
+                                        if (Grid.IsValidCell(c2) && Grid.Element[c2].id != SimHashes.Unobtanium)
+                                            { nv += Grid.Temperature[c2]; nc++; }
+
+                                        c2 = Grid.CellBelow(cell);
+                                        if (Grid.IsValidCell(c2) && Grid.Element[c2].id != SimHashes.Unobtanium)
+                                            { nv += Grid.Temperature[c2]; nc++; }
+
+                                        c2 = Grid.CellLeft(cell);
+                                        if (Grid.IsValidCell(c2) && Grid.Element[c2].id != SimHashes.Unobtanium)
+                                            { nv += Grid.Temperature[c2]; nc++; }
+
+                                        c2 = Grid.CellRight(cell);
+                                        if (Grid.IsValidCell(c2) && Grid.Element[c2].id != SimHashes.Unobtanium)
+                                            { nv += Grid.Temperature[c2]; nc++; }
+
+                                        if (nc > 0)
+                                            v = nv / nc;
+                                    }
+
+                                    float f = (float)((v - MaterialProber.Min) / MaterialProber.Range);
                                     f = Mathf.Clamp01(f);
                                     if (f < 0.5)
                                         color = Color.Lerp(color, col_cold, (0.5f - f) * 2 * cint_temp);
@@ -1950,7 +2067,33 @@ namespace MaterialProbeMod
                                 }
                                 else
                                 {
-                                    float f = (float)((Grid.Mass[cell] - MaterialProber.Min) / MaterialProber.Range);
+                                    float v = Grid.Mass[cell];
+                                    if (MaterialProbeModMain.config.CamoflageNeutronium && Grid.Element[cell].id == SimHashes.Unobtanium)
+                                    {
+                                        int c2; float nv = 0; int nc = 0;
+                                        
+                                        c2 = Grid.CellAbove(cell);
+                                        if (Grid.IsValidCell(c2) && Grid.Element[c2].id != SimHashes.Unobtanium && Grid.Element[c2].IsSolid)
+                                            { nv += Grid.Mass[c2]; nc++; }
+
+                                        c2 = Grid.CellBelow(cell);
+                                        if (Grid.IsValidCell(c2) && Grid.Element[c2].id != SimHashes.Unobtanium && Grid.Element[c2].IsSolid)
+                                            { nv += Grid.Mass[c2]; nc++; }
+
+                                        c2 = Grid.CellLeft(cell);
+                                        if (Grid.IsValidCell(c2) && Grid.Element[c2].id != SimHashes.Unobtanium && Grid.Element[c2].IsSolid)
+                                            { nv += Grid.Mass[c2]; nc++; }
+
+                                        c2 = Grid.CellRight(cell);
+                                        if (Grid.IsValidCell(c2) && Grid.Element[c2].id != SimHashes.Unobtanium && Grid.Element[c2].IsSolid)
+                                            { nv += Grid.Mass[c2]; nc++; }
+
+                                        if (nc > 0)
+                                            v = nv / nc;
+                                        else
+                                            v = 1000f;
+                                    }
+                                    float f = (float)((v - MaterialProber.Min) / MaterialProber.Range);
                                     f = Mathf.Clamp01(f);
                                     if (f < 0.5)
                                         color = Color.Lerp(color, col_light, (0.5f - f) * 2 * cint_dens);

@@ -47,7 +47,9 @@ Shading controls what the range the probe uses for shading. Normally, the high v
  - Min/Max - The high and low values are the maximum and minimum values, respectively. The most intuitive, but can have artifacts.
  - 2 Std. Dev. - The high and low values are 2 standard deviations above and below the average, respectively. This can be confusing if you don't know what that means, but generally results in much better shading.
  - 1 Std. Dev. - The same as above, but uses 1 standard deviation instead.
- 
+
+There is one hidden config in the settings file (generated on first run). "CamoflageNeutronium" causes Neutronium (the element under geysers) try to camoflage itself in the probe. It is still ignored for statistics if that option is selected. This *does* mean the probe will give you false information about neutronium when shading the world, but makes geysers much more difficult to find with the probe. If you would rather the probe be completely honest with you, or you're fine with finding geysers with the probe, you can disable this option.
+
 ## FAQ
 
  - What does NEGLIGIBLE RANGE mean?
